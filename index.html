@@ -1044,7 +1044,7 @@ const isLead = ()=> !!(S.profile && (S.profile.isAcaraAdmin || S.profile.isBph))
 const waitMs=ms=>new Promise(r=>setTimeout(r,ms));
 const API_TIMEOUT={state:25000,bootstrap:45000,checkBatch:25000};
 const RETRY_NET=new Set(['bootstrap','finish','setStart','note','closeDay','checkAll']);
-async function apiOnce(action,body){
+async function apiOnce(action,body,sid){
   const ms=API_TIMEOUT[action], ctl=ms&&window.AbortController?new AbortController():null, to=ctl?setTimeout(()=>ctl.abort(),ms):0;
   const t0=Date.now(); let j;
   try{
@@ -1054,14 +1054,14 @@ async function apiOnce(action,body){
   finally{ clearTimeout(to); }
   const t1=Date.now();
   if(j.serverTime && t1-t0<4000){ const off=j.serverTime-(t0+t1)/2; S.offset = S.offset? S.offset*0.7+off*0.3 : off; }
-  if(!j.ok){ const e=new Error(j.error||'Gagal'); e.code=j.code; if(j.code==='AUTH'||j.code==='FORBIDDEN') handleAuthFail(e); throw e; }
+  if(!j.ok){ const e=new Error(j.error||'Gagal'); e.code=j.code; if((j.code==='AUTH'||j.code==='FORBIDDEN') && sid===S.session) handleAuthFail(e); throw e; }
   return j.data;
 }
 async function api(action,payload={}){
   if(DEMO) return Mock.call(action,payload);
-  const body = JSON.stringify(Object.assign({action,session:S.session,trial:!!S.trial.active},payload));
+  const sid=S.session, body = JSON.stringify(Object.assign({action,session:sid,trial:!!S.trial.active},payload));
   for(let a=0;;a++){
-    try{ return await apiOnce(action,body); }
+    try{ return await apiOnce(action,body,sid); }
     catch(e){
       const retry=a<2 && ((e.code==='BUSY'&&action!=='state'&&action!=='checkBatch') || (e.code==='NET'&&RETRY_NET.has(action)));
       if(!retry) throw e;
@@ -1470,8 +1470,8 @@ function renderDivPick(){
 }
 async function showWelcome(err){
   show('welcome');
-  if(!S.roster.length){ try{ const d=await api('roster',{}); S.roster=d.roster||[]; }catch(e){ S.roster=[]; } }
   if(EV.pickDivision){ showGoogle(err); return; }
+  if(!S.roster.length){ try{ const d=await api('roster',{}); S.roster=d.roster||[]; }catch(e){ S.roster=[]; } }
   if(S.pick && S.roster.find(r=>r.name===S.pick)) { renderRole(S.pick); if(err!=null) showLogin(err); else { $('#loginBox').classList.add('hidden'); $('#whoBox').classList.remove('hidden'); } }
   else { S.pick=null; renderRole(null); $('#loginBox').classList.add('hidden'); $('#whoBox').classList.remove('hidden'); }
   renderNameList('');
@@ -1563,7 +1563,7 @@ function applyState(st,reset){
   if(st.evals){ const es=JSON.stringify(st.evals); if(es!==S.evalStr){ const first=S.evalStr==null; S.evalStr=es; S.evals=st.evals;
       Object.keys(st.evals).forEach(k=>{ const T=S.evalText[k], m=st.evals[k]; if(T&&T.loaded&&!(EVR&&EVR.day.key===k)&&(m.ts>(T.ts||0)||m.sts>(T.sts||0))){ T.summary=m.summary; T.sts=m.sts; T.sby=m.sby; T.source=m.source; if(m.ts>(T.ts||0)) T.loaded=false; } });
       if(!first&&$('#pEval').classList.contains('open')) renderEval(null,true); } }
-  if(st.rv!=null){ const prev=S.rv; S.rv=st.rv; if(!reset && prev && st.rv!==prev) reloadRundown(true); }
+  if(st.rv!=null){ const prev=S.rv; S.rv=st.rv; if(!reset && prev!=null && st.rv!==prev) reloadRundown(true); }
   if(st.chat) mergeChat(st.chat,reset);
   if(!reset) Object.keys(S.closed).forEach(k=>{ if(!prevClosed[k]){ const d=S.days.find(x=>x.key===k); if(d && !S.celSeen[celKey(d)]) setTimeout(()=>celebrate(d),300); } });
 }
