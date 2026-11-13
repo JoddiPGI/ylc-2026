@@ -1,0 +1,7 @@
+{
+  "name": "prompt-master-mods",
+  "owner": { "name": "Prompt Master" },
+  "plugins": [
+    { "name": "prompt-master", "source": "./mods/prompt-master", "description": "Improves your prompts before you send them." }
+  ]
+}
