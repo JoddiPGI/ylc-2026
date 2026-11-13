@@ -1,0 +1,6 @@
+{
+  "name": "prompt-master",
+  "version": "0.1.0",
+  "description": "Improves your rough prompt (role, task, context, format, quality check), picks the best AI tool and Claude model, and never sends anything itself.",
+  "types": "./types/index.d.ts"
+}
